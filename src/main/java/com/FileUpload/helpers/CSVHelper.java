@@ -27,7 +27,6 @@ public class CSVHelper {
     private CustomerRepository customerRepository;
 
     final String secretKey = "shhhhh!!!!!";
-
     public boolean hasCSVFormat(MultipartFile file) {
         if (!TYPE.equals(file.getContentType())) {
             return false;
