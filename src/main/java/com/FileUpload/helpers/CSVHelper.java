@@ -1,5 +1,6 @@
 package com.FileUpload.helpers;
 
+import com.FileUpload.constants.Details;
 import com.FileUpload.models.Customer;
 import com.FileUpload.repository.CustomerRepository;
 import org.apache.commons.csv.CSVFormat;
@@ -26,7 +27,6 @@ public class CSVHelper {
     @Autowired
     private CustomerRepository customerRepository;
 
-    final String secretKey = "shhhhh!!!!!";
     public boolean hasCSVFormat(MultipartFile file) {
         if (!TYPE.equals(file.getContentType())) {
             return false;
@@ -54,7 +54,7 @@ public class CSVHelper {
                 try {
                     if (tempCustomer.isPresent()==false) {
                         System.out.println("New");
-                        encryptedContactNumber = aes256Helper.encrypt(contactNumbers,secretKey);
+                        encryptedContactNumber = aes256Helper.encrypt(contactNumbers, Details.SECRET_KEY.getValue());
                         Customer customer = new Customer(
                                 customerId,
                                 customerName,
@@ -64,13 +64,13 @@ public class CSVHelper {
                         );
                         customerRepository.save(customer);
                     } else {
-                        String previousContactNumbers = tempCustomer.get().getContactNumbers();
+                        String previousContactNumbers = tempCustomer.get().getCustomerContact();
                         previousContactCount = tempCustomer.get().getDistinctNumbers();
-                        previousContactNumbers = aes256Helper.decrypt(previousContactNumbers,secretKey);
+                        previousContactNumbers = aes256Helper.decrypt(previousContactNumbers,Details.SECRET_KEY.getValue());
 
                         encryptedContactNumber = aes256Helper.encrypt(
                                 contactNumbers.concat(",").concat(previousContactNumbers)
-                                ,secretKey);
+                                ,Details.SECRET_KEY.getValue());
 
                         Customer customer = new Customer(
                                 customerId,

@@ -1,12 +1,19 @@
 package com.FileUpload.routes;
 
-import com.FileUpload.POJO.customerResponse;
 import com.FileUpload.helpers.AES;
 import com.FileUpload.models.Customer;
+import com.FileUpload.models.CustomerResponse;
+import com.FileUpload.models.ResponseMessage;
 import com.FileUpload.repository.CustomerRepository;
+import com.FileUpload.utilities.CustomerUtility;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import com.FileUpload.constants.Details;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Optional;
 
 
@@ -20,52 +27,74 @@ public class getCustomerDetails {
     @Autowired
     AES aesHelper;
 
-    final static String secretKey = "shhhhh!!!!!";
+    @Autowired
+    CustomerUtility customerUtility;
 
     @GetMapping(value="/getCustomerDetails")
-    public customerResponse getCustomerDetailsById(@RequestParam("Id") Integer customerId) throws IllegalAccessException {
-        String message = "";
+    public ResponseEntity getCustomerDetailsById(@RequestParam("Id") Integer customerId) {
 
         Optional<Customer> customerData = customerRepository.findById(Long.valueOf(customerId.longValue()));
 
         if(!customerData.isPresent()){
             //No customer
-            message = "User Not Found";
-            throw new IllegalAccessException(message);
-        }
-        String[] Contacts;
+            String message = "User Not Found";
+            return ResponseEntity.status(HttpStatus.EXPECTATION_FAILED).body(new ResponseMessage(message));
+       }
+        String[] Contacts = customerUtility.handleCustomerContacts(aesHelper, customerData);
 
-        String encryptedContacts = aesHelper.decrypt(customerData.get().contactNumbers,secretKey);
-        Contacts = encryptedContacts.split("[,]",0);
-
-        for (int i =0;i<Contacts.length;i++) {
-            Contacts[i] = aesHelper.encrypt(Contacts[i],secretKey);
-        }
-        return customerResponse.builder()
-                .id(customerData.get().id)
-                .contactNumbers(Contacts)
-                .contactAddress(customerData.get().contactAddress)
+        return ResponseEntity.status(HttpStatus.OK).body(
+                CustomerResponse.builder()
+                .customerId(customerData.get().customerId)
+                .customerName(customerData.get().customerName)
+                .customerContact(Contacts)
+                .customerAddress(customerData.get().customerAddress)
                 .distinctNumbers(customerData.get().distinctNumbers)
-                .build();
+                .build());
+    }
+
+    @GetMapping(value="/getAllCustomerDetails")
+    public ResponseEntity getAllCustomerDetails() {
+
+        List<Customer> customerDataList = customerRepository.findAll();
+
+        if(customerDataList.isEmpty()){
+            //No customer
+            return new ResponseEntity<List<Customer>>(new ArrayList<>(), HttpStatus.OK);
+        }
+        List<CustomerResponse> customerContactList = new ArrayList<>();
+
+        for(Customer customerData: customerDataList) {
+            String[] Contacts = customerUtility.handleCustomerContacts(aesHelper, Optional.of(customerData));
+
+            customerContactList.add(CustomerResponse.builder()
+                    .customerId(customerData.customerId)
+                    .customerName(customerData.customerName)
+                    .customerContact(Contacts)
+                    .customerAddress(customerData.customerAddress)
+                    .distinctNumbers(customerData.distinctNumbers)
+                    .build());
+        }
+
+        return ResponseEntity.status(HttpStatus.OK).body(customerContactList);
     }
 
     @GetMapping(value="/getCustomerContacts")
-    public String[] getContactsById(@RequestParam("Id") Integer customerId) throws IllegalAccessException {
+    public ResponseEntity getContactsById(@RequestParam("Id") Integer customerId) throws IllegalAccessException {
         String[] Contacts;
         String message = "";
         Optional<Customer> customerData = customerRepository.findById(Long.valueOf(customerId.longValue()));
 
-        if(customerData.isPresent()==false){
+        if(!customerData.isPresent()){
             //No customer
             message = "User Not Found";
-            throw new IllegalAccessException(message);
+            return ResponseEntity.status(HttpStatus.EXPECTATION_FAILED).body(new ResponseMessage(message));
         }
-        String encryptedContacts = aesHelper.decrypt(customerData.get().contactNumbers,secretKey);
+        String encryptedContacts = aesHelper.decrypt(customerData.get().customerContact,Details.SECRET_KEY.getValue());
         Contacts = encryptedContacts.split("[,]",0);
 
         for (int i =0;i<Contacts.length;i++) {
-            Contacts[i] = aesHelper.encrypt(Contacts[i],secretKey);
+            Contacts[i] = aesHelper.encrypt(Contacts[i],Details.SECRET_KEY.getValue());
         }
-        return Contacts;
+        return ResponseEntity.status(HttpStatus.OK).body(Contacts);
     }
 }
