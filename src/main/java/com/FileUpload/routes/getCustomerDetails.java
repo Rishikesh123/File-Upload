@@ -7,6 +7,8 @@ import com.FileUpload.repository.CustomerRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Optional;
 
 
@@ -68,4 +70,31 @@ public class getCustomerDetails {
         }
         return Contacts;
     }
+
+    @GetMapping(value="/getAllCustomers")
+    public List<Customer> getAllCustomers() throws IllegalAccessException {
+        String message = "";
+        List<Customer> customerData = customerRepository.findAll();
+        return customerData;
+    }
+
+    @GetMapping(value="/getAgentAllocations")
+    public List<List<Customer>> getAgentAllocations(@RequestParam("perHeadAllocations") Integer perHeadAllocations) throws IllegalAccessException{
+        String message= "";
+        List<List<Customer>> allocations = new ArrayList<>();
+        List<Customer> temp = new ArrayList<>();
+
+        List<Customer> customerData = customerRepository.findAll();
+        int currsize =0;
+        for(int i=0;i<customerData.size();i++){
+            temp.add(customerData.get(i));
+            currsize = temp.size();
+            if(currsize==perHeadAllocations){
+                allocations.add(temp);
+                temp = new ArrayList<>();
+            }
+        }
+        return allocations;
+    }
+
 }
