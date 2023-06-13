@@ -3,6 +3,7 @@ package com.FileUpload.helpers;
 import com.FileUpload.constants.Details;
 import com.FileUpload.models.Customer;
 import com.FileUpload.repository.CustomerRepository;
+import com.FileUpload.utilities.CustomerUtility;
 import org.apache.commons.csv.CSVFormat;
 import org.apache.commons.csv.CSVParser;
 import org.apache.commons.csv.CSVRecord;
@@ -15,6 +16,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
 
@@ -27,6 +29,8 @@ public class CSVHelper {
     @Autowired
     private CustomerRepository customerRepository;
 
+    @Autowired
+    private CustomerUtility customerUtility;
     public boolean hasCSVFormat(MultipartFile file) {
         if (!TYPE.equals(file.getContentType())) {
             return false;
@@ -53,7 +57,6 @@ public class CSVHelper {
                 Integer previousContactCount = 1;
                 try {
                     if (tempCustomer.isPresent()==false) {
-                        System.out.println("New");
                         encryptedContactNumber = aes256Helper.encrypt(contactNumbers, Details.SECRET_KEY.getValue());
                         Customer customer = new Customer(
                                 customerId,
@@ -67,6 +70,18 @@ public class CSVHelper {
                         String previousContactNumbers = tempCustomer.get().getCustomerContact();
                         previousContactCount = tempCustomer.get().getDistinctNumbers();
                         previousContactNumbers = aes256Helper.decrypt(previousContactNumbers,Details.SECRET_KEY.getValue());
+
+                        HashSet<String> previousContactsSet = new HashSet<>();
+                        String[] previousUnencryptedContacts = customerUtility.handleUnencyptedCustomerContacts(aes256Helper,tempCustomer);
+
+                        for(String x:previousUnencryptedContacts){
+                            previousContactsSet.add(x);
+                        }
+
+                        if(previousContactsSet.contains(contactNumbers)){
+                            System.out.println("Duplicate Details for "+tempCustomer);
+                            continue;
+                        }
 
                         encryptedContactNumber = aes256Helper.encrypt(
                                 contactNumbers.concat(",").concat(previousContactNumbers)
